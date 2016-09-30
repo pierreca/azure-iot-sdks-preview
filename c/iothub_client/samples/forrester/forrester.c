@@ -20,7 +20,7 @@
 #include "certs.h"
 #endif // MBED_BUILD_TIMESTAMP
 
-#define DEVICE_ID "hshami_pi"
+#define DEVICE_ID "DeviceRP3"
 #define FIRMWARE_VERSION "4.4.21.v7+"
 static const char* deviceId = DEVICE_ID;
 // static const char* connectionString = "HostName=dm-preview1-1.private.azure-devices-int.net;DeviceId=" DEVICE_ID ";SharedAccessKey=brmfvvTUsFqAgQ8cfhSO1kj1+ziWhvTo/XXWg7fgfj0=";
