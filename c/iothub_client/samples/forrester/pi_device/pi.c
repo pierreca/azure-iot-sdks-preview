@@ -304,6 +304,28 @@ bool device_update_firmware(void)
     return (result == 0);
 }
 
+void device_reboot(void)
+{
+    int  pid, sid;
+    bool retValue;
+        
+    /* Fork off the parent process */
+    pid = fork();
+    if (pid < 0)
+    {
+        LogError("failed to fork from parent process: %p\n", pid);
+        retValue = false;
+    }
+    else
+    {
+        if (pid == 0)
+        {
+            ThreadAPI_Sleep(5000);
+            reboot(RB_AUTOBOOT);
+        }
+    }
+}
+
 bool device_run_service(void)
 {
     int  pid, sid;
