@@ -38,7 +38,8 @@ _Bool, Enabled
 
 DECLARE_STRUCT(DeviceProperties,
 ascii_char_ptr, DeviceID,
-_Bool, HubEnabledState
+_Bool, HubEnabledState,
+ascii_char_ptr, FirmwareVersion
 );
 
 DECLARE_MODEL(Thermostat,
@@ -55,7 +56,6 @@ WITH_DATA(_Bool, IsSimulatedDevice),
 WITH_DATA(ascii_char_ptr, Version),
 WITH_DATA(DeviceProperties, DeviceProperties),
 WITH_DATA(ascii_char_ptr_no_quotes, Commands),
-WITH_DATA(ascii_char_ptr, firmware_version),
 
 /* Commands implemented by the device */
 WITH_ACTION(SetTemperature, int, temperature),
@@ -98,7 +98,7 @@ EXECUTE_COMMAND_RESULT firmwareupdate(Thermostat* thermostat, ascii_char_ptr URI
     FILE *fd = fopen("/fw_version", "w");
     if (fd != NULL)
     {
-        fprintf(fd, "%s", URI);
+        fprintf(fd, "%s\n", URI);
         fflush(fd);
         fclose(fd);
     }
@@ -229,6 +229,7 @@ void remote_monitoring_run(void)
                         thermostat->Version = "1.0";
                         thermostat->DeviceProperties.HubEnabledState = true;
                         thermostat->DeviceProperties.DeviceID = (char*)deviceId;
+                        thermostat->DeviceProperties.FirmwareVersion = device_read_string_from_file("/fw_version");
 
                         commandsMetadata = STRING_new();
                         if (commandsMetadata == NULL)
@@ -269,16 +270,15 @@ void remote_monitoring_run(void)
                         thermostat->ExternalTemperature = 55;
                         thermostat->Humidity = 50;
                         thermostat->DeviceId = (char*)deviceId;
-                        thermostat->firmware_version = device_read_string_from_file("/fw_version");
 
                         while (1)
                         {
                             unsigned char*buffer;
                             size_t bufferSize;
 
-                            (void)printf("Sending sensor value Temperature = %d, Humidity = %d Firmware Version = %s\r\n", thermostat->Temperature, thermostat->Humidity, thermostat->firmware_version);
+                            (void)printf("Sending sensor value Temperature = %d, Humidity = %d Firmware Version = %s\r\n", thermostat->Temperature, thermostat->Humidity, thermostat->DeviceProperties.FirmwareVersion);
 
-                            if (SERIALIZE(&buffer, &bufferSize, thermostat->DeviceId, thermostat->Temperature, thermostat->Humidity, thermostat->ExternalTemperature, thermostat->firmware_version) != CODEFIRST_OK)
+                            if (SERIALIZE(&buffer, &bufferSize, thermostat->DeviceId, thermostat->Temperature, thermostat->Humidity, thermostat->ExternalTemperature, thermostat->DeviceProperties) != CODEFIRST_OK)
                             {
                                 (void)printf("Failed sending sensor value\r\n");
                             }
@@ -289,7 +289,6 @@ void remote_monitoring_run(void)
 
                             ThreadAPI_Sleep(1000);
                         }
-                        free(thermostat->firmware_version);
                     }
 
                     DESTROY_MODEL_INSTANCE(thermostat);
