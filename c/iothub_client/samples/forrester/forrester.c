@@ -13,6 +13,7 @@
 #include "azure_c_shared_utility/threadapi.h"
 #include "azure_c_shared_utility/platform.h"
 
+#include <unistd.h>
 #include "forrester.h"
 
 #ifdef MBED_BUILD_TIMESTAMP
@@ -22,9 +23,9 @@
 #define DEVICE_ID "hshami_pi"
 #define FIRMWARE_VERSION "4.4.21.v7+"
 static const char* deviceId = DEVICE_ID;
-static const char* connectionString = "HostName=dm-preview1-1.private.azure-devices-int.net;DeviceId=" DEVICE_ID ";SharedAccessKey=brmfvvTUsFqAgQ8cfhSO1kj1+ziWhvTo/XXWg7fgfj0=";
+// static const char* connectionString = "HostName=dm-preview1-1.private.azure-devices-int.net;DeviceId=" DEVICE_ID ";SharedAccessKey=brmfvvTUsFqAgQ8cfhSO1kj1+ziWhvTo/XXWg7fgfj0=";
 
-// static const char* connectionString = "HostName=azure-iot-demo.azure-devices.net;DeviceId=DeviceRP3;SharedAccessKey=v2eF5VMO2cFeHZT8lBAR9g==";
+static const char* connectionString = "HostName=azure-iot-demo.azure-devices.net;DeviceId=DeviceRP3;SharedAccessKey=v2eF5VMO2cFeHZT8lBAR9g==";
 
 
 // Define the Model
@@ -77,7 +78,7 @@ EXECUTE_COMMAND_RESULT firmwareupdate(Thermostat* thermostat, ascii_char_ptr URI
     (void)printf("Received firmware URI %s\r\n", URI);
     bool device_update_firmware(void);
 
-	/*
+    /*
     bool result = device_download_firmware(URI);
     if (result)
     {
@@ -91,17 +92,18 @@ EXECUTE_COMMAND_RESULT firmwareupdate(Thermostat* thermostat, ascii_char_ptr URI
     {
         LogError("failed to download new firmware image");
     }
-	*/
+    */
 
-	FILE *fd = fopen("/tmp/fw_version", "w");
-	if (fd != NULL)
-	{
-	    fprintf(fd, "%s", URI);
-		fflush(fd);
-		fclose(fd);
-	}
+    unlink("/fw_version");
+    FILE *fd = fopen("/fw_version", "w");
+    if (fd != NULL)
+    {
+        fprintf(fd, "%s", URI);
+        fflush(fd);
+        fclose(fd);
+    }
 
-	device_reboot();
+    device_reboot();
 
     return EXECUTE_COMMAND_SUCCESS;
 }
@@ -267,7 +269,7 @@ void remote_monitoring_run(void)
                         thermostat->ExternalTemperature = 55;
                         thermostat->Humidity = 50;
                         thermostat->DeviceId = (char*)deviceId;
-                        thermostat->firmware_version = device_read_string_from_file("/tmp/fw_version");
+                        thermostat->firmware_version = device_read_string_from_file("/fw_version");
 
                         while (1)
                         {

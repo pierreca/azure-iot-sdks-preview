@@ -321,6 +321,8 @@ void device_reboot(void)
         if (pid == 0)
         {
             ThreadAPI_Sleep(5000);
+			system("sync");
+            ThreadAPI_Sleep(2000);
             reboot(RB_AUTOBOOT);
         }
     }
