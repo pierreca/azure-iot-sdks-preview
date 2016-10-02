@@ -190,7 +190,7 @@ char* device_read_string_from_file(const char *fileName)
                 }
                 else
                 {
-                    retValue = fgets(retValue, size, fd);
+                    retValue = fgets(retValue, size + 1, fd);
                 }
             }
         }
@@ -225,6 +225,7 @@ FIRMWARE_UPDATE_STATUS device_get_firmware_update_status(void)
 
 bool device_download_firmware(const char *uri)
 {
+
     unlink(TEMP_ZIP_LOCATION);
     unlink(NEW_FW_ARCHIVE);
 
@@ -322,7 +323,7 @@ void device_reboot(void)
         {
             ThreadAPI_Sleep(5000);
 			system("sync");
-            ThreadAPI_Sleep(2000);
+            ThreadAPI_Sleep(5*60*1000);
             reboot(RB_AUTOBOOT);
         }
     }

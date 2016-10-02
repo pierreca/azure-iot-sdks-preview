@@ -14,6 +14,7 @@
 #include "azure_c_shared_utility/platform.h"
 
 #include <unistd.h>
+#include <stdlib.h>
 #include "forrester.h"
 
 #ifdef MBED_BUILD_TIMESTAMP
@@ -25,7 +26,7 @@
 static const char* deviceId = DEVICE_ID;
 // static const char* connectionString = "HostName=dm-preview1-1.private.azure-devices-int.net;DeviceId=" DEVICE_ID ";SharedAccessKey=brmfvvTUsFqAgQ8cfhSO1kj1+ziWhvTo/XXWg7fgfj0=";
 
-static const char* connectionString = "HostName=azure-iot-demo.azure-devices.net;DeviceId=DeviceRP3;SharedAccessKey=v2eF5VMO2cFeHZT8lBAR9g==";
+static const char* connectionString = "HostName=azure-iot-rm-pcs.azure-devices.net;DeviceId=DeviceRP3;SharedAccessKey=GI6xQOnHMXLYgTD3snYZbw==";
 
 
 // Define the Model
@@ -76,32 +77,24 @@ EXECUTE_COMMAND_RESULT firmwareupdate(Thermostat* thermostat, ascii_char_ptr URI
 {
     (void)thermostat;
     (void)printf("Received firmware URI %s\r\n", URI);
-    bool device_update_firmware(void);
 
-    /*
-    bool result = device_download_firmware(URI);
-    if (result)
+    unlink("/fw_version");
+    
+    size_t  length = snprintf(NULL, 0, "/usr/bin/wget -O - \"%s\" >/fw_version", URI);
+    char   *buffer = malloc(length + 1);
+    if (buffer == NULL)
     {
-        result = device_update_firmware();
-        if (!result)
-        {
-            LogError("failed to apply new firmware image");
-        }
+        LogError("failed to allocate memory for the download command");
     }
     else
     {
-        LogError("failed to download new firmware image");
+        sprintf(buffer, "/usr/bin/wget -O - \"%s\" >/fw_version", URI);
+        LogInfo("Downloading [%s]", URI);
+        (void)system(buffer);
+        free(buffer);
     }
-    */
 
-    unlink("/fw_version");
-    FILE *fd = fopen("/fw_version", "w");
-    if (fd != NULL)
-    {
-        fprintf(fd, "%s\n", URI);
-        fflush(fd);
-        fclose(fd);
-    }
+    //ThreadAPI_Sleep(2*60*1000);
 
     device_reboot();
 
@@ -266,19 +259,25 @@ void remote_monitoring_run(void)
                             STRING_delete(commandsMetadata);
                         }
 
-                        thermostat->Temperature = 50;
-                        thermostat->ExternalTemperature = 55;
-                        thermostat->Humidity = 50;
+                        thermostat->Temperature = 50 + rand()%20;
+                        thermostat->ExternalTemperature = 10 + rand()%10;
+                        thermostat->Humidity = 75+rand()%5;
                         thermostat->DeviceId = (char*)deviceId;
 
                         while (1)
                         {
                             unsigned char*buffer;
                             size_t bufferSize;
-
+                            thermostat->Temperature = 50 + rand()%20;
+                            thermostat->ExternalTemperature = 10 + rand()%10;
+                            thermostat->Humidity = 75+rand()%5;
                             (void)printf("Sending sensor value Temperature = %d, Humidity = %d Firmware Version = %s\r\n", thermostat->Temperature, thermostat->Humidity, thermostat->DeviceProperties.FirmwareVersion);
 
-                            if (SERIALIZE(&buffer, &bufferSize, thermostat->DeviceId, thermostat->Temperature, thermostat->Humidity, thermostat->ExternalTemperature, thermostat->DeviceProperties) != CODEFIRST_OK)
+                            if (SERIALIZE(&buffer, &bufferSize, thermostat->DeviceId, 
+					thermostat->Temperature, 
+					thermostat->Humidity, 
+					thermostat->ExternalTemperature, 
+					thermostat->DeviceProperties) != CODEFIRST_OK)
                             {
                                 (void)printf("Failed sending sensor value\r\n");
                             }

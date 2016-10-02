@@ -190,7 +190,8 @@ char* device_read_string_from_file(const char *fileName)
                 }
                 else
                 {
-                    retValue = fgets(retValue, size, fd);
+                    (void)fread(retValue, size, 1, fd);
+                    retValue[size]='\0';
                 }
             }
         }
