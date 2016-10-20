@@ -33,6 +33,7 @@
 #include "iothub_client_options.h"
 #include "iothub_client_private.h"
 #include "iothubtransportamqp.h"
+#include "iothubtransportamqp_methods.h"
 #include "iothub_client_version.h"
 
 #define INDEFINITE_TIME ((time_t)(-1))
@@ -182,6 +183,12 @@ typedef struct AMQP_TRANSPORT_STATE_TAG
 
     /*here are the options from the xio layer if any is saved*/
     OPTIONHANDLER_HANDLE xioOptions;
+
+    /* the methods portion */
+    IOTHUBTRANSPORT_AMQP_METHODS_HANDLE methods_handle;
+
+    /* Is subscription for methods needed? */
+    int subscribe_methods_needed : 1;
 } AMQP_TRANSPORT_INSTANCE;
 
 
@@ -318,18 +325,59 @@ static void on_message_send_complete(void* context, MESSAGE_SEND_RESULT send_res
     free(message);
 }
 
+static void on_methods_error(void* context)
+{
+    (void)context;
+}
+
+static void on_method_request_received(void* context, const char* method_name, const unsigned char* request, size_t request_size, IOTHUBTRANSPORT_AMQP_METHOD_HANDLE method_handle)
+{
+    AMQP_TRANSPORT_INSTANCE* transportState = (AMQP_TRANSPORT_INSTANCE*)context;
+    BUFFER_HANDLE response_buffer = BUFFER_new();
+    int status = IoTHubClient_LL_DeviceMethodComplete(transportState->iothub_client_handle, method_name, request, request_size, response_buffer);
+    unsigned char* response_payload = BUFFER_u_char(response_buffer);
+    size_t response_size = BUFFER_length(response_buffer);
+    if (iothubtransportamqp_methods_respond(method_handle, response_payload, response_size, status) != 0)
+    {
+        LogError("iothubtransportamqp_methods_respond failed");
+    }
+}
+
+static int subscribe_methods(AMQP_TRANSPORT_INSTANCE* transportState)
+{
+    int result;
+
+    if (transportState->subscribe_methods_needed == 0)
+    {
+        result = 0;
+    }
+    else
+    {
+        if (iothubtransportamqp_methods_subscribe(transportState->methods_handle, transportState->session, on_methods_error, transportState, on_method_request_received, transportState) != 0)
+        {
+            result = __LINE__;
+        }
+        else
+        {
+            result = 0;
+        }
+    }
+
+    return result;
+}
+
 static void on_put_token_complete(void* context, CBS_OPERATION_RESULT operation_result, unsigned int status_code, const char* status_description)
 {
-#ifdef NO_LOGGING
-    UNUSED(status_code);
-    UNUSED(status_description);
-#endif
-
     AMQP_TRANSPORT_INSTANCE* transportState = (AMQP_TRANSPORT_INSTANCE*)context;
 
     if (operation_result == CBS_OPERATION_RESULT_OK)
     {
         transportState->cbs.cbs_state = CBS_STATE_AUTHENTICATED;
+
+        if (subscribe_methods(transportState) != 0)
+        {
+            LogError("Failed subscribing for methods");
+        }
     }
     else
     {
@@ -402,6 +450,11 @@ static XIO_HANDLE getTLSIOTransport(const char* fqdn, int port)
 
 static void destroyConnection(AMQP_TRANSPORT_INSTANCE* transport_state)
 {
+    if (transport_state->methods_handle != NULL)
+    {
+        iothubtransportamqp_methods_unsubscribe(transport_state->methods_handle);
+    }
+
     if (transport_state->cbs.cbs != NULL)
     {
         cbs_destroy(transport_state->cbs.cbs);
@@ -618,9 +671,10 @@ static int establishConnection(AMQP_TRANSPORT_INSTANCE* transport_state)
                         }
                         else
                         {
-                        connection_set_trace(transport_state->connection, transport_state->is_trace_on);
-                        (void)xio_setoption(transport_state->tls_io, OPTION_LOG_TRACE, &transport_state->is_trace_on);
-                        result = RESULT_OK;
+                            connection_set_trace(transport_state->connection, transport_state->is_trace_on);
+                            (void)xio_setoption(transport_state->tls_io, OPTION_LOG_TRACE, &transport_state->is_trace_on);
+                            subscribe_methods(transport_state);
+                            result = RESULT_OK;
                         }
                     }
                 }
@@ -1249,6 +1303,7 @@ static TRANSPORT_LL_HANDLE IoTHubTransportAMQP_Create(const IOTHUBTRANSPORT_CONF
             transport_state->cbs.current_sas_token_create_time = 0;
             transport_state->cbs.sasl_io = NULL;
             transport_state->cbs.sasl_mechanism = NULL;
+            transport_state->subscribe_methods_needed = 0;
 
             transport_state->xioOptions = NULL; 
 
@@ -1361,7 +1416,18 @@ static TRANSPORT_LL_HANDLE IoTHubTransportAMQP_Create(const IOTHUBTRANSPORT_CONF
                     // Codes_SRS_IOTHUBTRANSPORTAMQP_09_129 : [IoTHubTransportAMQP_Create shall set parameter transport_state->cbs_request_timeout with the default value of 30000 (milliseconds).]
                     transport_state->cbs.cbs_request_timeout = DEFAULT_CBS_REQUEST_TIMEOUT_MS;
                 }
-                
+            }
+
+            if (!cleanup_required)
+            {
+                /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_010: [ `IoTHubTransportAMQP_Create` shall create a new iothubtransportamqp_methods instance by calling `iothubtransportamqp_methods_create` while passing to it the device Id. ]*/
+                transport_state->methods_handle = iothubtransportamqp_methods_create(config->upperConfig->deviceId);
+                if (transport_state->methods_handle == NULL)
+                {
+                    /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_011: [ If `iothubtransportamqp_methods_create` fails, `IoTHubTransportAMQP_Create` shall fail and return NULL. ]*/
+                    LogError("Cannot create the methods module");
+                    cleanup_required = true;
+                }
             }
 
             if (cleanup_required)
@@ -1408,6 +1474,9 @@ static void IoTHubTransportAMQP_Destroy(TRANSPORT_LL_HANDLE handle)
         // Codes_SRS_IOTHUBTRANSPORTAMQP_09_032 : [IoTHubTransportAMQP_Destroy shall destroy the AMQP SASL I / O transport.]
         // Codes_SRS_IOTHUBTRANSPORTAMQP_09_033 : [IoTHubTransportAMQP_Destroy shall destroy the AMQP SASL mechanism.]
         destroyConnection(transport_state);
+
+        /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_012: [ `IoTHubTransportAMQP_Destroy` shall destroy the C2D methods portion of the transport by calling `iothubtransportamqp_methods_destroy`. ]*/
+        iothubtransportamqp_methods_destroy(transport_state->methods_handle);
 
         // Codes_SRS_IOTHUBTRANSPORTAMQP_09_035 : [IoTHubTransportAMQP_Destroy shall delete its internally - set parameters(deviceKey, targetAddress, devicesPath, sasTokenKeyName).]
         STRING_delete(transport_state->targetAddress);
@@ -1462,8 +1531,11 @@ static void IoTHubTransportAMQP_DoWork(TRANSPORT_LL_HANDLE handle, IOTHUB_CLIENT
         if (transport_state->connection != NULL &&
             transport_state->connection_state == AMQP_MANAGEMENT_STATE_ERROR)
         {
-            LogError("An error occured on AMQP connection. The connection will be restablished.");
             trigger_connection_retry = true;
+
+            /* Unsubscribe methods */
+            iothubtransportamqp_methods_unsubscribe(transport_state->methods_handle);
+            LogError("An error occured on AMQP connection. The connection will be re-established.");
         }
         // Codes_SRS_IOTHUBTRANSPORTAMQP_09_055: [If the transport handle has a NULL connection, IoTHubTransportAMQP_DoWork shall instantiate and initialize the AMQP components and establish the connection] 
         else if (transport_state->connection == NULL &&
@@ -1628,18 +1700,74 @@ static void IoTHubTransportAMQP_Unsubscribe_DeviceTwin(IOTHUB_DEVICE_HANDLE hand
     LogError("IoTHubTransportAMQP_Unsubscribe_DeviceTwin Not supported");
 }
 
+static bool is_authenticated(AMQP_TRANSPORT_INSTANCE* transport_state)
+{
+    bool result = false;
+
+    switch (transport_state->credential.credentialType)
+    {
+    default:
+        break;
+
+    case X509:
+        if (transport_state->session != NULL)
+        {
+            result = true;
+        }
+        break;
+    case DEVICE_KEY:
+    case DEVICE_SAS_TOKEN:
+        if (transport_state->cbs.cbs_state == CBS_STATE_AUTHENTICATED)
+        {
+            result = true;
+        }
+        break;
+    }
+
+    return result;
+}
+
 static int IoTHubTransportAMQP_Subscribe_DeviceMethod(IOTHUB_DEVICE_HANDLE handle)
 {
-    (void)handle;
-    int result = __LINE__;
-    LogError("not implemented (yet)");
+    int result;
+
+    if (handle == NULL)
+    {
+        /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_004: [ If `handle` is NULL, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall fail and return a non-zero value. ] */
+        LogError("NULL handle");
+        result = __LINE__;
+    }
+    else
+    {
+        AMQP_TRANSPORT_INSTANCE* transport_state = (AMQP_TRANSPORT_INSTANCE*)handle;
+        /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_001: [ `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall mark that the transport shall subscribe for method requests in the subsequent `DoWork` call and on success it shall return 0.. ]*/
+        /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_005: [ If the transport is already subscribed to receive C2D method requests, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall perform no additional action and return 0. ]*/
+        transport_state->subscribe_methods_needed = 1;
+        result = 0;
+    }
+
     return result;
 }
 
 static void IoTHubTransportAMQP_Unsubscribe_DeviceMethod(IOTHUB_DEVICE_HANDLE handle)
 {
-    (void)handle;
-    LogError("not implemented (yet)");
+    if (handle == NULL)
+    {
+        /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_006: [ If `handle` is NULL, `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. ]*/
+        LogError("NULL handle");
+    }
+    else
+    {
+        AMQP_TRANSPORT_INSTANCE* transport_state = (AMQP_TRANSPORT_INSTANCE*)handle;
+
+        /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_008: [ If the transport is not subscribed to receive C2D method requests then `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. ]*/
+        if (transport_state->subscribe_methods_needed != 0)
+        {
+            /* Codes_SRS_IOTHUBTRANSPORTAMQP_01_007: [ `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall unsubscribe from receiving C2D method requests by calling `iothubtransportamqp_methods_unsubscribe`. ]*/
+            transport_state->subscribe_methods_needed = 0;
+            iothubtransportamqp_methods_unsubscribe(transport_state->methods_handle);
+        }
+    }
 }
 
 static IOTHUB_CLIENT_RESULT IoTHubTransportAMQP_GetSendStatus(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_STATUS *iotHubClientStatus)

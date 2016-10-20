@@ -20,7 +20,7 @@ extern "C"
     typedef struct IOTHUBTRANSPORT_AMQP_METHOD_TAG* IOTHUBTRANSPORT_AMQP_METHOD_HANDLE;
     typedef struct IOTHUBTRANSPORT_AMQP_METHODS_TAG* IOTHUBTRANSPORT_AMQP_METHODS_HANDLE;
     typedef void(*ON_METHODS_ERROR)(void* context);
-    typedef void(*ON_METHOD_REQUEST_RECEIVED)(void* context, const char* method_name, const unsigned char* request, size_t request_size, IOTHUBTRANSPORT_AMQP_METHOD_HANDLE response);
+    typedef void(*ON_METHOD_REQUEST_RECEIVED)(void* context, const char* method_name, const unsigned char* request, size_t request_size, IOTHUBTRANSPORT_AMQP_METHOD_HANDLE method_handle);
 
     MOCKABLE_FUNCTION(, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransportamqp_methods_create, const char*, device_id);
     MOCKABLE_FUNCTION(, void, iothubtransportamqp_methods_destroy, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransport_amqp_methods_handle);

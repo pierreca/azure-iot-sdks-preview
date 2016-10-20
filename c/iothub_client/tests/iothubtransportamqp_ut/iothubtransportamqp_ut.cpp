@@ -33,6 +33,7 @@ static MICROMOCK_GLOBAL_SEMAPHORE_HANDLE g_dllByDll;
 
 #include "uamqp_messaging.h"
 #include "iothubtransportamqp.h"
+#include "iothubtransportamqp_methods.h"
 #include "iothub_client_options.h"
 #include "iothub_client_private.h"
 #include "iothub_message.h"
@@ -252,6 +253,7 @@ static int test_amqpvalue_get_string_length = 10;
 static AMQP_VALUE test_message_get_application_properties_return = TEST_AMQP_MAP_VALUE;
 
 static int test_amqpvalue_get_map_pair_count = 1;
+static IOTHUBTRANSPORT_AMQP_METHODS_HANDLE test_amqp_methods_handle = (IOTHUBTRANSPORT_AMQP_METHODS_HANDLE)0x5642;
 
 // **  Mocks **
 TYPED_MOCK_CLASS(CIoTHubTransportAMQPMocks, CGlobalMock)
@@ -850,6 +852,23 @@ public:
     MOCK_STATIC_METHOD_2(, int, IoTHubMessage_CreateFromUamqpMessage, MESSAGE_HANDLE, uamqp_message, IOTHUB_MESSAGE_HANDLE*, iothub_message)
         *iothub_message = TEST_IOTHUB_MESSAGE_HANDLE;
     MOCK_METHOD_END(int, 0)
+
+    // iothubtransportamqp_methods
+    MOCK_STATIC_METHOD_1(, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransportamqp_methods_create, const char*, device_id);
+    MOCK_METHOD_END(IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, test_amqp_methods_handle)
+    MOCK_STATIC_METHOD_1(, void, iothubtransportamqp_methods_destroy, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransport_amqp_methods_handle);
+    MOCK_VOID_METHOD_END()
+    MOCK_STATIC_METHOD_6(, int, iothubtransportamqp_methods_subscribe, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransport_amqp_methods_handle,
+        SESSION_HANDLE, session_handle, ON_METHODS_ERROR, on_methods_error, void*, on_methods_error_context,
+        ON_METHOD_REQUEST_RECEIVED, on_method_request_received, void*, on_method_request_received_context);
+    MOCK_METHOD_END(int, 0)
+    MOCK_STATIC_METHOD_1(, void, iothubtransportamqp_methods_unsubscribe, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransport_amqp_methods_handle)
+    MOCK_VOID_METHOD_END()
+    MOCK_STATIC_METHOD_4(, int, iothubtransportamqp_methods_respond, IOTHUBTRANSPORT_AMQP_METHOD_HANDLE, method_handle,
+        const unsigned char*, response, size_t, response_size, int, status_code);
+    MOCK_METHOD_END(int, 0)
+    MOCK_STATIC_METHOD_5(, int, IoTHubClient_LL_DeviceMethodComplete, IOTHUB_CLIENT_LL_HANDLE, handle, const char*, method_name, const unsigned char*, payLoad, size_t, size, BUFFER_HANDLE, response)
+    MOCK_METHOD_END(int, 0)
 };
 
 // ** End Mocks **
@@ -1070,6 +1089,18 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportAMQPMocks, , OPTIONHANDLER_HANDLE, 
 DECLARE_GLOBAL_MOCK_METHOD_2(CIoTHubTransportAMQPMocks, , int, message_create_from_iothub_message, IOTHUB_MESSAGE_HANDLE, iothub_message, MESSAGE_HANDLE*, uamqp_message);
 DECLARE_GLOBAL_MOCK_METHOD_2(CIoTHubTransportAMQPMocks, , int, IoTHubMessage_CreateFromUamqpMessage, MESSAGE_HANDLE, uamqp_message, IOTHUB_MESSAGE_HANDLE*, iothub_message);
 
+// uamqp_messaging.h
+DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportAMQPMocks, , IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransportamqp_methods_create, const char*, device_id);
+DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportAMQPMocks, , void, iothubtransportamqp_methods_destroy, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransport_amqp_methods_handle);
+DECLARE_GLOBAL_MOCK_METHOD_6(CIoTHubTransportAMQPMocks, , int, iothubtransportamqp_methods_subscribe, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransport_amqp_methods_handle,
+    SESSION_HANDLE, session_handle, ON_METHODS_ERROR, on_methods_error, void*, on_methods_error_context,
+    ON_METHOD_REQUEST_RECEIVED, on_method_request_received, void*, on_method_request_received_context);
+DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportAMQPMocks, , void, iothubtransportamqp_methods_unsubscribe, IOTHUBTRANSPORT_AMQP_METHODS_HANDLE, iothubtransport_amqp_methods_handle)
+DECLARE_GLOBAL_MOCK_METHOD_4(CIoTHubTransportAMQPMocks, , int, iothubtransportamqp_methods_respond, IOTHUBTRANSPORT_AMQP_METHOD_HANDLE, method_handle,
+    const unsigned char*, response, size_t, response_size, int, status_code);
+
+DECLARE_GLOBAL_MOCK_METHOD_5(CIoTHubTransportAMQPMocks, , int, IoTHubClient_LL_DeviceMethodComplete, IOTHUB_CLIENT_LL_HANDLE, handle, const char*, method_name, const unsigned char*, payLoad, size_t, size, BUFFER_HANDLE, response);
+
 // Auxiliary Functions
 
 #define STEP_CREATE_LIST_INIT 0
@@ -1188,6 +1219,7 @@ static void setExpectedCallsForTransportCreateUpTo(CIoTHubTransportAMQPMocks& mo
         else if (step == STEP_CREATE_DEVICEKEY)
         {
             STRICT_EXPECTED_CALL(mocks, STRING_construct(config->upperConfig->deviceKey)).IgnoreArgument(1);
+            STRICT_EXPECTED_CALL(mocks, iothubtransportamqp_methods_create(config->upperConfig->deviceId));
         }
     }
 }
@@ -1366,6 +1398,8 @@ static void setExpectedCallsForConnectionDoWork(CIoTHubTransportAMQPMocks& mocks
 static void setExpectedCallsForTransportDestroy(CIoTHubTransportAMQPMocks& mocks, bool isConnectionInitialized, bool destroyIOtransport, size_t numberOfEventsInProgress)
 {
     (void)mocks;
+    STRICT_EXPECTED_CALL(mocks, iothubtransportamqp_methods_destroy(test_amqp_methods_handle));
+
     if (isConnectionInitialized)
     {
         EXPECTED_CALL(mocks, messagesender_destroy(0));
@@ -1836,6 +1870,42 @@ TEST_FUNCTION(AMQP_Create_transport_state_allocation_fails)
     ASSERT_IS_NULL(transport);
 }
 
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_011: [ If `iothubtransportamqp_methods_create` fails, `IoTHubTransportAMQP_Create` shall fail and return NULL. ]*/
+TEST_FUNCTION(when_creating_the_methods_module_fails_creating_the_transport_fails)
+{
+    // arrange
+    CIoTHubTransportAMQPMocks mocks;
+
+    DLIST_ENTRY wts;
+    BASEIMPLEMENTATION::DList_InitializeListHead(&wts);
+    TRANSPORT_PROVIDER* transport_interface = (TRANSPORT_PROVIDER*)AMQP_Protocol();
+
+    IOTHUB_CLIENT_CONFIG client_config = { (IOTHUB_CLIENT_TRANSPORT_PROVIDER)transport_interface,
+        TEST_DEVICE_ID, TEST_DEVICE_KEY, NULL, TEST_IOT_HUB_NAME, TEST_IOT_HUB_SUFFIX, TEST_PROT_GW_HOSTNAME_NULL };
+    IOTHUBTRANSPORT_CONFIG config = { &client_config, &wts };
+
+    mocks.ResetAllCalls();
+    setExpectedCallsForTransportCreateUpTo(mocks, &config, STEP_CREATE_SASTOKEN_KEYNAME);
+
+    STRICT_EXPECTED_CALL(mocks, STRING_construct(config.upperConfig->deviceKey)).IgnoreArgument(1);
+    STRICT_EXPECTED_CALL(mocks, iothubtransportamqp_methods_create(config.upperConfig->deviceId))
+        .SetReturn((IOTHUBTRANSPORT_AMQP_METHODS_HANDLE)NULL);
+    EXPECTED_CALL(mocks, STRING_delete(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, STRING_delete(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, STRING_delete(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, STRING_delete(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, STRING_delete(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, STRING_delete(IGNORED_PTR_ARG));
+    EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG));
+
+    // act
+    TRANSPORT_LL_HANDLE transport = transport_interface->IoTHubTransport_Create(&config);
+
+    // assert
+    ASSERT_IS_NULL(transport);
+    mocks.AssertActualAndExpectedCalls();
+}
+
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_010: [If config->upperConfig->protocolGatewayHostName is NULL, IoTHubTransportAMQP_Create shall create an immutable string, referred to as iotHubHostFqdn, from the following pieces: config->iotHubName + "." + config->iotHubSuffix.] 
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_012: [IoTHubTransportAMQP_Create shall create an immutable string, referred to as devicesPath, from the following parts : host_fqdn + " / devices / " + deviceId.]
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_014: [IoTHubTransportAMQP_Create shall create an immutable string, referred to as targetAddress, from the following parts: "amqps://" + devicesPath + "/messages/events".]
@@ -1843,6 +1913,7 @@ TEST_FUNCTION(AMQP_Create_transport_state_allocation_fails)
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_016: [IoTHubTransportAMQP_Create shall initialize handle->sasTokenKeyName with a zero-length STRING_HANDLE instance.] 
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_018: [IoTHubTransportAMQP_Create shall store a copy of config->deviceKey (passed by upper layer) into the transport's own deviceKey field.] 
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_023: [If IoTHubTransportAMQP_Create succeeds it shall return a non-NULL pointer to the structure that represents the transport.] 
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_010: [ `IoTHubTransportAMQP_Create` shall create a new iothubtransportamqp_methods instance by calling `iothubtransportamqp_methods_create` while passing to it the device Id. ]*/
 TEST_FUNCTION(AMQP_Create_succeeds)
 {
     // arrange
@@ -1877,6 +1948,7 @@ TEST_FUNCTION(AMQP_Create_succeeds)
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_016: [IoTHubTransportAMQP_Create shall initialize handle->sasTokenKeyName with a zero-length STRING_HANDLE instance.] 
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_018: [IoTHubTransportAMQP_Create shall store a copy of config->deviceKey (passed by upper layer) into the transport's own deviceKey field.] 
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_023: [If IoTHubTransportAMQP_Create succeeds it shall return a non-NULL pointer to the structure that represents the transport.] 
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_010: [ `IoTHubTransportAMQP_Create` shall create a new iothubtransportamqp_methods instance by calling `iothubtransportamqp_methods_create` while passing to it the device Id. ]*/
 TEST_FUNCTION(AMQP_Create_succeeds_with_gw_hostname)
 {
     // arrange
@@ -2183,6 +2255,7 @@ TEST_FUNCTION(AMQP_Create_deviceKey_copy_fails)
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_034: [IoTHubTransportAMQP_Destroy shall destroy the AMQP TLS I/O transport.] 
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_035: [IoTHubTransportAMQP_Destroy shall delete its internally - set parameters(deviceKey, targetAddress, devicesPath, sasTokenKeyName).]
 // Tests_SRS_IOTHUBTRANSPORTAMQP_09_036: [IoTHubTransportAMQP_Destroy shall return the remaining items in inProgress to waitingToSend list.] 
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_012: [ `IoTHubTransportAMQP_Destroy` shall destroy the C2D methods portion of the transport by calling `iothubtransportamqp_methods_destroy`. ]*/
 TEST_FUNCTION(AMQP_Destroy_succeeds_no_DoWork)
 {
     // arrange
@@ -4259,6 +4332,7 @@ TEST_FUNCTION(IoTHubTransportAMQP_Create_for_x509_succeeds)
     IOTHUBTRANSPORT_CONFIG config = { &client_config, &wts };
 
     setExpectedCallsForTransportCreateUpTo(mocks, &config, STEP_CREATE_RECEIVE_ADDRESS);
+    STRICT_EXPECTED_CALL(mocks, iothubtransportamqp_methods_create(config.upperConfig->deviceId));
 
     ///act
     TRANSPORT_LL_HANDLE transport = transport_interface->IoTHubTransport_Create(&config);
@@ -4526,6 +4600,157 @@ TEST_FUNCTION(IoTHubTransportAMQP_Subscribe_DeviceTwin_returns)
     ///assert
     mocks.AssertActualAndExpectedCalls();
     ASSERT_ARE_NOT_EQUAL(int, 0, res);
+}
+
+/* IoTHubTransportAMQP_Subscribe_DeviceMethod */
+
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_004: [ If `handle` is NULL, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall fail and return a non-zero value. ] */
+TEST_FUNCTION(IoTHubTransportAMQP_Subscribe_DeviceMethod_with_NULL_handle_fails)
+{
+    ///arrange
+    CIoTHubTransportAMQPMocks mocks;
+    TRANSPORT_PROVIDER* transport_interface = (TRANSPORT_PROVIDER*)AMQP_Protocol();
+
+    /// act
+    int res = transport_interface->IoTHubTransport_Subscribe_DeviceMethod(NULL);
+
+    ///assert
+    mocks.AssertActualAndExpectedCalls();
+    ASSERT_ARE_NOT_EQUAL(int, 0, res);
+}
+
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_001: [ `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall mark that the transport shall subscribe for method requests in the subsequent `DoWork` call and on success it shall return 0.. ]*/
+TEST_FUNCTION(IoTHubTransportAMQP_Subscribe_DeviceMethod_suceeds)
+{
+    ///arrange
+    CIoTHubTransportAMQPMocks mocks;
+    IOTHUB_DEVICE_CONFIG device;
+    device.deviceId = TEST_DEVICE_ID;
+    device.deviceKey = TEST_DEVICE_KEY;
+    device.deviceSasToken = NULL;
+
+    DLIST_ENTRY wts;
+    BASEIMPLEMENTATION::DList_InitializeListHead(&wts);
+    TRANSPORT_PROVIDER* transport_interface = (TRANSPORT_PROVIDER*)AMQP_Protocol();
+    IOTHUB_CLIENT_CONFIG client_config = { (IOTHUB_CLIENT_TRANSPORT_PROVIDER)transport_interface,
+        TEST_DEVICE_ID, TEST_DEVICE_KEY, NULL, TEST_IOT_HUB_NAME, TEST_IOT_HUB_SUFFIX, TEST_PROT_GW_HOSTNAME };
+    IOTHUBTRANSPORT_CONFIG config = { &client_config, &wts };
+
+    TRANSPORT_LL_HANDLE transport = transport_interface->IoTHubTransport_Create(&config);
+    IOTHUB_DEVICE_HANDLE devHandle = transport_interface->IoTHubTransport_Register(transport, &device, TEST_IOTHUB_CLIENT_LL_HANDLE, &wts);
+    mocks.ResetAllCalls();
+
+    /// act
+    int res = transport_interface->IoTHubTransport_Subscribe_DeviceMethod(devHandle);
+
+    ///assert
+    mocks.AssertActualAndExpectedCalls();
+    ASSERT_ARE_EQUAL(int, 0, res);
+}
+
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_005: [ If the transport is already subscribed to receive C2D method requests, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall perform no additional action and return 0. ]*/
+TEST_FUNCTION(IoTHubTransportAMQP_Subscribe_DeviceMethod_After_Subscribe_DeviceTwin_suceeds)
+{
+    ///arrange
+    CIoTHubTransportAMQPMocks mocks;
+    IOTHUB_DEVICE_CONFIG device;
+    device.deviceId = TEST_DEVICE_ID;
+    device.deviceKey = TEST_DEVICE_KEY;
+    device.deviceSasToken = NULL;
+
+    DLIST_ENTRY wts;
+    BASEIMPLEMENTATION::DList_InitializeListHead(&wts);
+    TRANSPORT_PROVIDER* transport_interface = (TRANSPORT_PROVIDER*)AMQP_Protocol();
+    IOTHUB_CLIENT_CONFIG client_config = { (IOTHUB_CLIENT_TRANSPORT_PROVIDER)transport_interface,
+        TEST_DEVICE_ID, TEST_DEVICE_KEY, NULL, TEST_IOT_HUB_NAME, TEST_IOT_HUB_SUFFIX, TEST_PROT_GW_HOSTNAME };
+    IOTHUBTRANSPORT_CONFIG config = { &client_config, &wts };
+
+    TRANSPORT_LL_HANDLE transport = transport_interface->IoTHubTransport_Create(&config);
+    IOTHUB_DEVICE_HANDLE devHandle = transport_interface->IoTHubTransport_Register(transport, &device, TEST_IOTHUB_CLIENT_LL_HANDLE, &wts);
+    (void)transport_interface->IoTHubTransport_Subscribe_DeviceTwin(devHandle);
+    mocks.ResetAllCalls();
+
+    /// act
+    int res = transport_interface->IoTHubTransport_Subscribe_DeviceMethod(devHandle);
+
+    ///assert
+    mocks.AssertActualAndExpectedCalls();
+    ASSERT_ARE_EQUAL(int, 0, res);
+}
+
+/* IoTHubTransportAMQP_Unsubscribe_DeviceMethod */
+
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_006: [ If `handle` is NULL, `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. ]*/
+TEST_FUNCTION(IoTHubTransportAMQP_Unsubscribe_DeviceMethod_with_NULL_handle_does_nothing)
+{
+    ///arrange
+    CIoTHubTransportAMQPMocks mocks;
+    TRANSPORT_PROVIDER* transport_interface = (TRANSPORT_PROVIDER*)AMQP_Protocol();
+
+    /// act
+    transport_interface->IoTHubTransport_Unsubscribe_DeviceMethod(NULL);
+
+    ///assert
+    mocks.AssertActualAndExpectedCalls();
+}
+
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_007: [ `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall unsubscribe from receiving C2D method requests by calling `iothubtransportamqp_methods_unsubscribe`. ]*/
+TEST_FUNCTION(IoTHubTransportAMQP_Unsubscribe_DeviceMethod_unsubscribes_from_receiving_methods_requests)
+{
+    ///arrange
+    CIoTHubTransportAMQPMocks mocks;
+    IOTHUB_DEVICE_CONFIG device;
+    device.deviceId = TEST_DEVICE_ID;
+    device.deviceKey = TEST_DEVICE_KEY;
+    device.deviceSasToken = NULL;
+
+    DLIST_ENTRY wts;
+    BASEIMPLEMENTATION::DList_InitializeListHead(&wts);
+    TRANSPORT_PROVIDER* transport_interface = (TRANSPORT_PROVIDER*)AMQP_Protocol();
+    IOTHUB_CLIENT_CONFIG client_config = { (IOTHUB_CLIENT_TRANSPORT_PROVIDER)transport_interface,
+        TEST_DEVICE_ID, TEST_DEVICE_KEY, NULL, TEST_IOT_HUB_NAME, TEST_IOT_HUB_SUFFIX, TEST_PROT_GW_HOSTNAME };
+    IOTHUBTRANSPORT_CONFIG config = { &client_config, &wts };
+
+    TRANSPORT_LL_HANDLE transport = transport_interface->IoTHubTransport_Create(&config);
+    IOTHUB_DEVICE_HANDLE devHandle = transport_interface->IoTHubTransport_Register(transport, &device, TEST_IOTHUB_CLIENT_LL_HANDLE, &wts);
+    (void)transport_interface->IoTHubTransport_Subscribe_DeviceTwin(devHandle);
+    mocks.ResetAllCalls();
+
+    STRICT_EXPECTED_CALL(mocks, iothubtransportamqp_methods_unsubscribe(test_amqp_methods_handle));
+
+    /// act
+    transport_interface->IoTHubTransport_Unsubscribe_DeviceMethod(devHandle);
+
+    ///assert
+    mocks.AssertActualAndExpectedCalls();
+}
+
+/* Tests_SRS_IOTHUBTRANSPORTAMQP_01_008: [ If the transport is not subscribed to receive C2D method requests then `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. ]*/
+TEST_FUNCTION(IoTHubTransportAMQP_Unsubscribe_DeviceMethod_does_not_do_anything_if_not_subscribed)
+{
+    ///arrange
+    CIoTHubTransportAMQPMocks mocks;
+    IOTHUB_DEVICE_CONFIG device;
+    device.deviceId = TEST_DEVICE_ID;
+    device.deviceKey = TEST_DEVICE_KEY;
+    device.deviceSasToken = NULL;
+
+    DLIST_ENTRY wts;
+    BASEIMPLEMENTATION::DList_InitializeListHead(&wts);
+    TRANSPORT_PROVIDER* transport_interface = (TRANSPORT_PROVIDER*)AMQP_Protocol();
+    IOTHUB_CLIENT_CONFIG client_config = { (IOTHUB_CLIENT_TRANSPORT_PROVIDER)transport_interface,
+        TEST_DEVICE_ID, TEST_DEVICE_KEY, NULL, TEST_IOT_HUB_NAME, TEST_IOT_HUB_SUFFIX, TEST_PROT_GW_HOSTNAME };
+    IOTHUBTRANSPORT_CONFIG config = { &client_config, &wts };
+
+    TRANSPORT_LL_HANDLE transport = transport_interface->IoTHubTransport_Create(&config);
+    IOTHUB_DEVICE_HANDLE devHandle = transport_interface->IoTHubTransport_Register(transport, &device, TEST_IOTHUB_CLIENT_LL_HANDLE, &wts);
+    mocks.ResetAllCalls();
+
+    /// act
+    transport_interface->IoTHubTransport_Unsubscribe_DeviceMethod(devHandle);
+
+    ///assert
+    mocks.AssertActualAndExpectedCalls();
 }
 
 END_TEST_SUITE(iothubtransportamqp_ut)

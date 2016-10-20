@@ -108,9 +108,9 @@ Summary of timeout parameters:
 |double sas_token_refresh_time  | 1800000 (milliseconds)  |
 |double cbs_request_timeout     | 30000 (milliseconds)    |
 
-**SRS_IOTHUBTRANSPORTAMQP_01_010: [** `IoTHubTransportAMQP_Create` shall create a new iothubtransportamqp_methods instance by calling `iothubtransportamqp_methods_create` while passing to it the device Id. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_010: [** `IoTHubTransportAMQP_Create` shall create a new iothubtransportamqp_methods instance by calling `iothubtransportamqp_methods_create` while passing to it the device Id. **]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_011: [** If `iothubtransportamqp_methods_create` fails, `IoTHubTransportAMQP_Create` shall fail and return NULL. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_011: [** If `iothubtransportamqp_methods_create` fails, `IoTHubTransportAMQP_Create` shall fail and return NULL. **]**
 
 **SRS_IOTHUBTRANSPORTAMQP_09_023: [**If IoTHubTransportAMQP_Create succeeds it shall return a non-NULL pointer to the structure that represents the transport.**]**
   
@@ -144,7 +144,7 @@ This function will close connection established through AMQP API, as well as des
 
 **SRS_IOTHUBTRANSPORTAMQP_09_150: [**IoTHubTransportAMQP_Destroy shall destroy the transport instance**]**
   
-**SRS_IOTHUBTRANSPORTAMQP_01_012: [** `IoTHubTransportAMQP_Destroy` shall destroy the C2D methods portion of the transport by calling `iothubtransportamqp_methods_destroy`. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_012: [** `IoTHubTransportAMQP_Destroy` shall destroy the C2D methods portion of the transport by calling `iothubtransportamqp_methods_destroy`. **]**
 
 ### IoTHubTransportAMQP_DoWork
  
@@ -189,11 +189,11 @@ The below requirement only apply when the authentication type is x509:
 
 **SRS_IOTHUBTRANSPORTAMQP_09_138: [**If session_create() fails, IoTHubTransportAMQP_DoWork shall fail and return immediately**]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_013: [** When a new session is created by `session_create`, the C2D methods portion of the transport shall be notified to unsubscribe and subscribe again by: **]**
+**SRS_IOTHUBTRANSPORTAMQP_01_013: [** For X509 authentication when `IoTHubTransportAMQP_Subscribe_DeviceMethod` has been called and a new session is created by `session_create`, the C2D methods portion of the transport shall be notified to subscribe by calling `iothubtransport_amqp_subscribe`. **]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_014: [** - A call to `iothubtransport_amqp_unsubscribe` **]**
+**SRS_IOTHUBTRANSPORTAMQP_01_025: [** When the CBS calls back on_put_token_complete with CBS_OPERATION_RESULT_OK, the C2D methods portion of the transport shall be notified to subscribe again by calling `iothubtransport_amqp_subscribe`. **]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_015: [** - A call to `iothubtransport_amqp_subscribe` having as argument the `on_method_request_received` callback and the newly created session handle. **]**
+**SRS_IOTHUBTRANSPORTAMQP_01_015: [** `iothubtransport_amqp_subscribe` shall ahve as argument the `on_method_request_received` callback and the newly created session handle. **]**
 
 **SRS_IOTHUBTRANSPORTAMQP_09_064: [**IoTHubTransportAMQP_DoWork shall inquire the IoT hub for the preferred value for parameter 'AMQP incoming window', and set them on AMQP using session_set_incoming_window() if provided**]**
 
@@ -458,28 +458,22 @@ void IoTHubTransportAMQP_Unsubscribe_DeviceTwin(IOTHUB_DEVICE_HANDLE handle, IOT
 int IoTHubTransportAMQP_Subscribe_DeviceMethod(IOTHUB_DEVICE_HANDLE handle)
 ```
 
-**SRS_IOTHUBTRANSPORTAMQP_01_004: [** If `handle` is NULL, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall fail and return a non-zero value. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_004: [** If `handle` is NULL, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall fail and return a non-zero value. **]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_001: [** `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall call `iothubtransportamqp_methods_subscribe` and pass to it the on_method_request_received callback and the current uAMQP session handle maintained by the transport. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_001: [** `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall mark that the transport shall subscribe for method requests in the subsequent `DoWork` call and on success it shall return 0.. **]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_024: [** `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall only call `iothubtransportamqp_methods_subscribe` if a session handle has been already created. **]**
-
-**SRS_IOTHUBTRANSPORTAMQP_01_002: [** On success it shall return 0. **]**
-
-**SRS_IOTHUBTRANSPORTAMQP_01_003: [** If `iothubtransportamqp_methods_subscribe` fails, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall fail and return a non-zero value. **]**
-
-**SRS_IOTHUBTRANSPORTAMQP_01_005: [** If the transport is already subscribed to receive C2D method requests, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall perform no additional action and return 0. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_005: [** If the transport is already subscribed to receive C2D method requests, `IoTHubTransportAMQP_Subscribe_DeviceMethod` shall perform no additional action and return 0. **]**
 
 ### IoTHubTransportAMQP_Unsubscribe_DeviceMethod
 ```c
 void IoTHubTransportAMQP_Unsubscribe_DeviceMethod(IOTHUB_DEVICE_HANDLE handle)
 ```
 
-**SRS_IOTHUBTRANSPORTAMQP_01_006: [** If `handle` is NULL, `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_006: [** If `handle` is NULL, `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. **]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_007: [** `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall unsubscribe from receiving C2D method requests by calling `iothubtransportamqp_methods_unsubscribe`. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_007: [** `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall unsubscribe from receiving C2D method requests by calling `iothubtransportamqp_methods_unsubscribe`. **]**
 
-**SRS_IOTHUBTRANSPORTAMQP_01_008: [** If the transport is not subscribed to receive C2D method requests then `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. **]**
+XX**SRS_IOTHUBTRANSPORTAMQP_01_008: [** If the transport is not subscribed to receive C2D method requests then `IoTHubTransportAMQP_Unsubscribe_DeviceMethod` shall do nothing. **]**
 
 ### on_methods_request_received
 
