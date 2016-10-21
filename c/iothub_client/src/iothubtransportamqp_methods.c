@@ -687,7 +687,7 @@ int iothubtransportamqp_methods_respond(IOTHUBTRANSPORT_AMQP_METHOD_HANDLE metho
                         AMQP_VALUE application_properties_map = amqpvalue_create_map();
                         if (application_properties_map == NULL)
                         {
-                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_string`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_int`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
                             LogError("Cannot create map for application properties");
                             result = __LINE__;
                         }
@@ -697,92 +697,82 @@ int iothubtransportamqp_methods_respond(IOTHUBTRANSPORT_AMQP_METHOD_HANDLE metho
                             AMQP_VALUE property_key_status = amqpvalue_create_symbol("IoThub-status");
                             if (property_key_status == NULL)
                             {
-                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_string`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_int`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
                                 LogError("Cannot create the property key for the status property");
                                 result = __LINE__;
                             }
                             else
                             {
-                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_092: [ A property value of type string shall be created from the stringified value of the `status_code` argument. ]*/
-                                char status_string[16];
-                                if (sprintf_s(status_string, sizeof(status_string), "%d", status_code) < 0)
+                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_097: [ The property value for status code shall be created by calling `amqpvalue_create_int`. ]*/
+                                AMQP_VALUE property_value_status = amqpvalue_create_int(status_code);
+                                if (property_value_status == NULL)
                                 {
-                                    LogError("Cannot stringify the status code");
+                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_int`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+                                    LogError("Cannot create the status code property value for the application properties map");
                                     result = __LINE__;
                                 }
                                 else
                                 {
-                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_097: [ The property value shall be created by calling `amqpvalue_create_string`. ]*/
-                                    AMQP_VALUE property_value_status = amqpvalue_create_string(status_string);
-                                    if (property_value_status == NULL)
+                                    /* Cdoes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_093: [ A new entry shall be added in the application properties map by calling `amqpvalue_set_map_value` and passing the key and value that were previously created. ]*/
+                                    if (amqpvalue_set_map_value(application_properties_map, property_key_status, property_value_status) != 0)
                                     {
-                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_string`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
-                                        LogError("Cannot create the status code property value for the application properties map");
+                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_int`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+                                        LogError("Cannot add the status property to the application properties");
                                         result = __LINE__;
                                     }
                                     else
                                     {
-                                        /* Cdoes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_093: [ A new entry shall be added in the application properties map by calling `amqpvalue_set_map_value` and passing the key and value that were previously created. ]*/
-                                        if (amqpvalue_set_map_value(application_properties_map, property_key_status, property_value_status) != 0)
+                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_094: [ The application properties map shall be set on the response message by calling `message_set_application_properties`. ]*/
+                                        if (message_set_application_properties(message, application_properties_map) != 0)
                                         {
-                                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_string`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
-                                            LogError("Cannot add the status property to the application properties");
+                                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_int`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+                                            LogError("Cannot set the application properties on the message");
                                             result = __LINE__;
                                         }
                                         else
                                         {
-                                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_094: [ The application properties map shall be set on the response message by calling `message_set_application_properties`. ]*/
-                                            if (message_set_application_properties(message, application_properties_map) != 0)
+                                            BINARY_DATA binary_data;
+
+                                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_079: [ The field `bytes` of the `binary_data` argument shall be set to the `response` argument value. ]*/
+                                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_080: [ The field `length` of the `binary_data` argument shall be set to the `response_size` argument value. ]*/
+                                            binary_data.bytes = response;
+                                            binary_data.length = response_size;
+
+                                            /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_078: [ The binary payload for the response shall be set by calling `message_add_body_amqp_data` for the newly created message handle. ]*/
+                                            if (message_add_body_amqp_data(message, binary_data) != 0)
                                             {
-                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_string`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
-                                                LogError("Cannot set the application properties on the message");
+                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_081: [ If the `message_add_body_amqp_data` call fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+                                                LogError("Cannot set the response payload on the reponse message");
                                                 result = __LINE__;
                                             }
                                             else
                                             {
-                                                BINARY_DATA binary_data;
-
-                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_079: [ The field `bytes` of the `binary_data` argument shall be set to the `response` argument value. ]*/
-                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_080: [ The field `length` of the `binary_data` argument shall be set to the `response_size` argument value. ]*/
-                                                binary_data.bytes = response;
-                                                binary_data.length = response_size;
-
-                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_078: [ The binary payload for the response shall be set by calling `message_add_body_amqp_data` for the newly created message handle. ]*/
-                                                if (message_add_body_amqp_data(message, binary_data) != 0)
+                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_067: [ The message shall be handed over to the message_sender by calling `messagesender_send` and passing as arguments: ]*/
+                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_068: [ - The response message handle. ]*/
+                                                /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_069: [ - A send callback and its context for the `on_message_send_complete` callback. ]*/
+                                                if (messagesender_send(method_handle->iothubtransport_amqp_methods_handle->message_sender, message, on_message_send_complete, method_handle->iothubtransport_amqp_methods_handle) != 0)
                                                 {
-                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_081: [ If the `message_add_body_amqp_data` call fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
-                                                    LogError("Cannot set the response payload on the reponse message");
+                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_071: [ If the `messagesender_send` call fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+                                                    LogError("Cannot send response message");
                                                     result = __LINE__;
                                                 }
                                                 else
                                                 {
-                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_067: [ The message shall be handed over to the message_sender by calling `messagesender_send` and passing as arguments: ]*/
-                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_068: [ - The response message handle. ]*/
-                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_069: [ - A send callback and its context for the `on_message_send_complete` callback. ]*/
-                                                    if (messagesender_send(method_handle->iothubtransport_amqp_methods_handle->message_sender, message, on_message_send_complete, method_handle->iothubtransport_amqp_methods_handle) != 0)
-                                                    {
-                                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_071: [ If the `messagesender_send` call fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
-                                                        LogError("Cannot send response message");
-                                                        result = __LINE__;
-                                                    }
-                                                    else
-                                                    {
-                                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_114: [ The handle `method_handle` shall be removed from the array used to track the method handles. ]*/
-                                                        remove_tracked_handle(method_handle->iothubtransport_amqp_methods_handle, method_handle);
+                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_114: [ The handle `method_handle` shall be removed from the array used to track the method handles. ]*/
+                                                    remove_tracked_handle(method_handle->iothubtransport_amqp_methods_handle, method_handle);
 
-                                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_111: [ The handle `method_handle` shall be freed (have no meaning) after `iothubtransportamqp_methods_respond` has been executed. ]*/
-                                                        free(method_handle);
+                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_111: [ The handle `method_handle` shall be freed (have no meaning) after `iothubtransportamqp_methods_respond` has been executed. ]*/
+                                                    free(method_handle);
 
-                                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_060: [ `iothubtransportamqp_methods_respond` shall construct a response message and on success it shall return 0. ]*/
-                                                        result = 0;
-                                                    }
+                                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_060: [ `iothubtransportamqp_methods_respond` shall construct a response message and on success it shall return 0. ]*/
+                                                    result = 0;
                                                 }
                                             }
                                         }
-
-                                        /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_095: [ The application property map and all intermediate values shall be freed after being passed to `message_set_application_properties`. ]*/
-                                        amqpvalue_destroy(property_value_status);
                                     }
+
+                                    /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_095: [ The application property map and all intermediate values shall be freed after being passed to `message_set_application_properties`. ]*/
+                                    amqpvalue_destroy(property_value_status);
                                 }
 
                                 /* Codes_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_095: [ The application property map and all intermediate values shall be freed after being passed to `message_set_application_properties`. ]*/

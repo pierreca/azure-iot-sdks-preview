@@ -264,9 +264,7 @@ The steps for creating the response message are:
 
 **SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_091: [** A property key `IoThub-status` shall be created by calling `amqpvalue_create_symbol`. **]**
 
-**SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_092: [** A property value of type string shall be created from the stringified value of the `status_code` argument. **]**
-
-**SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_097: [** The property value shall be created by calling `amqpvalue_create_string`. **]**
+**SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_097: [** The property value for the status code shall be created by calling `amqpvalue_create_int`. **]**
 
 **SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_093: [** A new entry shall be added in the application properties map by calling `amqpvalue_set_map_value` and passing the key and value that were previously created. **]**
 
@@ -274,7 +272,7 @@ The steps for creating the response message are:
 
 **SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_095: [** The application property map and all intermediate values shall be freed after being passed to `message_set_application_properties`. **]**
 
-**SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [** If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_string`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. **]**
+**SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [** If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_int`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. **]**
 
 **SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_078: [** The binary payload for the response shall be set by calling `message_add_body_amqp_data` for the newly created message handle. **]**
 

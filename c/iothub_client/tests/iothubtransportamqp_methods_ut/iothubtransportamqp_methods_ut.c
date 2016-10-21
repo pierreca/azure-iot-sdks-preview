@@ -450,7 +450,7 @@ static void setup_method_respond_calls(void)
         .SetReturn(response_properties_map);
     STRICT_EXPECTED_CALL(amqpvalue_create_symbol("IoThub-status"))
         .SetReturn(status_property_key);
-    STRICT_EXPECTED_CALL(amqpvalue_create_string("100"))
+    STRICT_EXPECTED_CALL(amqpvalue_create_int(100))
         .SetReturn(status_property_value);
     STRICT_EXPECTED_CALL(amqpvalue_set_map_value(response_properties_map, status_property_key, status_property_value));
     STRICT_EXPECTED_CALL(message_set_application_properties(TEST_RESPONSE_UAMQP_MESSAGE, response_properties_map));
@@ -461,7 +461,7 @@ static void setup_method_respond_calls(void)
     EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
 }
 
-static void setup_respond_calls(const char* status)
+static void setup_respond_calls(int status)
 {
     static const unsigned char response_payload[] = { 0x43 };
     AMQP_VALUE response_correlation_id = (AMQP_VALUE)0x6000;
@@ -486,7 +486,7 @@ static void setup_respond_calls(const char* status)
         .SetReturn(response_properties_map);
     STRICT_EXPECTED_CALL(amqpvalue_create_symbol("IoThub-status"))
         .SetReturn(status_property_key);
-    STRICT_EXPECTED_CALL(amqpvalue_create_string(status))
+    STRICT_EXPECTED_CALL(amqpvalue_create_int(status))
         .SetReturn(status_property_value);
     STRICT_EXPECTED_CALL(amqpvalue_set_map_value(response_properties_map, status_property_key, status_property_value));
     STRICT_EXPECTED_CALL(message_set_application_properties(TEST_RESPONSE_UAMQP_MESSAGE, response_properties_map));
@@ -1799,8 +1799,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_with_NULL_response_fails)
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_065: [ - The correlation id on the message properties shall be set by calling `properties_set_correlation_id` and passing as argument the already create correlation ID AMQP value. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_090: [ An AMQP map shall be created to hold the application properties for the response by calling `amqpvalue_create_map`. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_091: [ A property key `IoThub-status` shall be created by calling `amqpvalue_create_symbol`. ]*/
-/* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_092: [ A property value of type string shall be created from the stringified value of the `status_code` argument. ]*/
-/* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_097: [ The property value shall be created by calling `amqpvalue_create_string`. ]*/
+/* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_097: [ The property value for status code shall be created by calling `amqpvalue_create_int`. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_093: [ A new entry shall be added in the application properties map by calling `amqpvalue_set_map_value` and passing the key and value that were previously created. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_094: [ The application properties map shall be set on the response message by calling `message_set_application_properties`. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_078: [ The binary payload for the response shall be set by calling `message_add_body_amqp_data` for the newly created message handle. ]*/
@@ -1847,7 +1846,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_sends_the_uAMQP_message)
         .SetReturn(response_properties_map);
     STRICT_EXPECTED_CALL(amqpvalue_create_symbol("IoThub-status"))
         .SetReturn(status_property_key);
-    STRICT_EXPECTED_CALL(amqpvalue_create_string("100"))
+    STRICT_EXPECTED_CALL(amqpvalue_create_int(100))
         .SetReturn(status_property_value);
     STRICT_EXPECTED_CALL(amqpvalue_set_map_value(response_properties_map, status_property_key, status_property_value));
     STRICT_EXPECTED_CALL(message_set_application_properties(TEST_RESPONSE_UAMQP_MESSAGE, response_properties_map));
@@ -1876,7 +1875,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_sends_the_uAMQP_message)
     iothubtransportamqp_methods_destroy(amqp_methods_handle);
 }
 
-/* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_092: [ A property value of type string shall be created from the stringified value of the `status_code` argument. ]*/
+/* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_097: [ The property value for status code shall be created by calling `amqpvalue_create_int`. ]*/
 TEST_FUNCTION(iothubtransportamqp_methods_respond_encodes_the_status)
 {
     /// arrange
@@ -1891,7 +1890,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_encodes_the_status)
     setup_message_received_calls();
     g_on_message_received(amqp_methods_handle, TEST_UAMQP_MESSAGE);
     umock_c_reset_all_calls();
-    setup_respond_calls("242");
+    setup_respond_calls(242);
 
     /// act
     result = iothubtransportamqp_methods_respond(g_method_handle, response_payload, sizeof(response_payload), 242);
@@ -1909,7 +1908,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_encodes_the_status)
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_064: [ If the `properties_create call` fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_125: [ If `amqpvalue_create_uuid` fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_066: [ If the `properties_set_correlation_id` call fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
-/* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_string`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
+/* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_096: [ If any of the calls `amqpvalue_create_symbol`, `amqpvalue_create_int`, `amqpvalue_create_map`, `amqpvalue_set_map_value` or `message_set_application_properties` fails `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_081: [ If the `message_add_body_amqp_data` call fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
 /* Tests_SRS_IOTHUBTRANSPORT_AMQP_METHODS_01_071: [ If the `messagesender_send` call fails, `iothubtransportamqp_methods_respond` shall fail and return a non-zero value. ]*/
 TEST_FUNCTION(when_a_failure_occurs_iothubtransportamqp_methods_respond_fails)
@@ -1952,7 +1951,7 @@ TEST_FUNCTION(when_a_failure_occurs_iothubtransportamqp_methods_respond_fails)
         .SetReturn(response_properties_map).SetFailReturn(NULL);
     STRICT_EXPECTED_CALL(amqpvalue_create_symbol("IoThub-status"))
         .SetReturn(status_property_key).SetFailReturn(NULL);
-    STRICT_EXPECTED_CALL(amqpvalue_create_string("100"))
+    STRICT_EXPECTED_CALL(amqpvalue_create_int(100))
         .SetReturn(status_property_value).SetFailReturn(NULL);
     STRICT_EXPECTED_CALL(amqpvalue_set_map_value(response_properties_map, status_property_key, status_property_value))
         .SetFailReturn(1);
@@ -2058,7 +2057,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_can_be_called_from_the_method_
         .SetReturn(response_properties_map);
     STRICT_EXPECTED_CALL(amqpvalue_create_symbol("IoThub-status"))
         .SetReturn(status_property_key);
-    STRICT_EXPECTED_CALL(amqpvalue_create_string("242"))
+    STRICT_EXPECTED_CALL(amqpvalue_create_int(242))
         .SetReturn(status_property_value);
     STRICT_EXPECTED_CALL(amqpvalue_set_map_value(response_properties_map, status_property_key, status_property_value));
     STRICT_EXPECTED_CALL(message_set_application_properties(TEST_RESPONSE_UAMQP_MESSAGE, response_properties_map));
@@ -2137,7 +2136,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_to_the_second_method_succeeds)
         .SetReturn(response_properties_map);
     STRICT_EXPECTED_CALL(amqpvalue_create_symbol("IoThub-status"))
         .SetReturn(status_property_key);
-    STRICT_EXPECTED_CALL(amqpvalue_create_string("242"))
+    STRICT_EXPECTED_CALL(amqpvalue_create_int(242))
         .SetReturn(status_property_value);
     STRICT_EXPECTED_CALL(amqpvalue_set_map_value(response_properties_map, status_property_key, status_property_value));
     STRICT_EXPECTED_CALL(message_set_application_properties(TEST_RESPONSE_UAMQP_MESSAGE, response_properties_map));
@@ -2188,7 +2187,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_removed_the_handle_from_the_tr
     g_on_message_received(amqp_methods_handle, TEST_UAMQP_MESSAGE);
     g_second_method_handle = g_method_handle;
     umock_c_reset_all_calls();
-    setup_respond_calls("242");
+    setup_respond_calls(242);
     (void)iothubtransportamqp_methods_respond(g_second_method_handle, response_payload, sizeof(response_payload), 242);
     iothubtransportamqp_methods_unsubscribe(amqp_methods_handle);
     umock_c_reset_all_calls();
@@ -2222,7 +2221,7 @@ TEST_FUNCTION(iothubtransportamqp_methods_respond_after_a_handle_has_been_remove
     setup_message_received_calls();
     g_on_message_received(amqp_methods_handle, TEST_UAMQP_MESSAGE);
     umock_c_reset_all_calls();
-    setup_respond_calls("242");
+    setup_respond_calls(242);
     (void)iothubtransportamqp_methods_respond(g_method_handle, response_payload, sizeof(response_payload), 242);
     umock_c_reset_all_calls();
 
