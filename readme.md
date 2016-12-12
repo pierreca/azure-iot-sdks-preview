@@ -1,3 +1,14 @@
+**/!\ Device Management has been shipped and the SDKs can now be found each in their own repositories:**
+
+- Node SDK: https://github.com/azure/azure-iot-sdk-node
+- C SDK: https://github.com/azure/azure-iot-sdk-c
+- .NET SDK: https://github.com/azure/azure-iot-sdk-csharp
+- Python SDK: https://github.com/azure/azure-iot-sdk-python
+- Java SDK: https://github.com/azure/azure-iot-sdk-java
+
+**This repository is deprecated and kept only for reference.**
+
+---------------------------------------
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
 # Microsoft Azure IoT SDKs
